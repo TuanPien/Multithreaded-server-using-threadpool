@@ -40,7 +40,7 @@ int main(int argc, char **argv) {
 
     // Initialize request to some silly data
     for (i = 0; i < REQUEST_SIZE; i++) {
-        request[i] = (char)(i % 255);
+        request[i] = (char)(i % 20);
     }
 
     // Spin forever, opening connections, and pushing requests

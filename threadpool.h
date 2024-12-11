@@ -6,7 +6,7 @@
  */
 
 // maximum number of threads allowed in a pool
-#define MAXT_IN_POOL 200
+#define MAXT_IN_POOL 20
 
 // You must hide the internal details of the threadpool
 // structure from callers, thus declare threadpool of type "void".
