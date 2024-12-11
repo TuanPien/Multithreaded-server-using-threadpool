@@ -71,17 +71,17 @@ int main(int argc, char **argv)
    *
    *  5) Close the data socket associated with the connection
    */
-/*
-  tp = create_threadpool(2);
-  dispatch(tp, dispatch_to_me, (void *) 3);
-*/
+
+  // tp = create_threadpool(2);
+  // dispatch(tp, dispatch_to_me, (void *) 3);
+
 
   threadpool tp;
   tp = create_threadpool(10);
    
   while(1) {
-    //char *request = NULL;
-    //char *response = NULL;
+    char *request = NULL;
+    char *response = NULL;
 
     socket_talk = saccept(socket_listen);  // step 1
     if (socket_talk < 0) {
@@ -92,7 +92,7 @@ int main(int argc, char **argv)
     }
 
     dispatch(tp, handle_new_connection, (void *)&socket_talk);
-    /*
+    
     request = read_request(socket_talk);  // step 2
     if (request != NULL) {
       int response_length;
@@ -109,7 +109,7 @@ int main(int argc, char **argv)
       free(request);
     if (response != NULL)
       free(response);
-    */
+    
   }
 }
 
@@ -192,7 +192,7 @@ void handle_new_connection(void *args)
 
     int socket_talk = *((int *)args);
 
-    //fprintf(stderr, "Processing request on socket %d\n", socket_talk);
+    fprintf(stderr, "Processing request on socket %d\n", socket_talk);
  
     request = read_request(socket_talk);  // step 2
     if (request != NULL) {

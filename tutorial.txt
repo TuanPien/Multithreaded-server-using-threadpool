@@ -1,0 +1,10 @@
+/*bien dich*/
+gcc -c SocketLibrary/saccept.c -o SocketLibrary/saccept.o
+gcc -c SocketLibrary/sconnect.c -o SocketLibrary/sconnect.o
+gcc -c SocketLibrary/slisten.c -o SocketLibrary/slisten.o
+gcc -c SocketLibrary/smessages.c -o SocketLibrary/smessages.o
+gcc -c SocketLibrary/sportnum.c -o SocketLibrary/sportnum.o
+gcc -c SocketLibrary/sprim.c -o SocketLibrary/sprim.o
+
+/*biendich server*/
+gcc -o server server.c SocketLibrary/saccept.o SocketLibrary/sconnect.o SocketLibrary/slisten.o SocketLibrary/smessages.o SocketLibrary/sportnum.o SocketLibrary/sprim.o common.o threadpool.o -I./SocketLibrary -L./SocketLibrary/lib -lsock -lpthread -lws2_32

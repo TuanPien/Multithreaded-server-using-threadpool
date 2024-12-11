@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        #output {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Test Server</h1>
+    <p>Click the button below to send a test request to the server.</p>
+
+    <button onclick="sendRequest()">Send Request to Server</button>
+
+    <div id="output"></div>
+
+    <script>
+        function sendRequest() {
+            const output = document.getElementById('output');
+            output.innerHTML = 'Sending request...';
+
+            fetch('http://localhost:8080')  // Địa chỉ của server
+                .then(response => response.text())
+                .then(data => {
+                    output.innerHTML = 'Server Response: <pre>' + data + '</pre>';
+                })
+                .catch(error => {
+                    output.innerHTML = 'Error: ' + error.message;
+                });
+        }
+    </script>
+
+</body>
+</html>

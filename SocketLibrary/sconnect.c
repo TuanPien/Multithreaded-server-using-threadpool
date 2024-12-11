@@ -1,61 +1,71 @@
-/*
- * sconnect.c -- return a socket connected to a remote address 
- *
- * The function takes strings for the remote host name and remote port.  If the
- * host name starts with a digit, then it is assumed to be an internet
- * dot-style address.  If the service starts with a digit, it is assumed to
- * be a port otherwise it is looked up as a service name. 
- *
- * This is hard-wired to do a stream TCP/IP connection.  If anything bad happens
- * it perror()s and exits.  Maybe later it will return -1 and set some global
- * error context. 
- */
-
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-
+#include <stdio.h>
+#include <winsock2.h>   // Sử dụng winsock2.h thay vì sys/socket.h
+#include <ws2tcpip.h>   // Thêm ws2tcpip.h cho các cấu trúc địa chỉ Internet
 #include "socklib.h"
 
+// Khởi tạo Winsock
+extern int errno;
+
 int 
-sconnect (hostname, servicename)
-    char   *hostname;
-    char   *servicename;
+sconnect (char *hostname, char *servicename)
 {
     struct sockaddr_in remote;
     struct sockaddr_in local;
-    int     s;
-    int     protonum;
+    int s;
+    int protonum;
 
     sclrerr ();
 
-    if (make_inetaddr (hostname, servicename, &remote) < 0)
-	return -1;
+    // Khởi tạo Winsock
+    WSADATA wsaData;
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+        perror("WSAStartup failed");
+        return -1;  // Nếu khởi tạo Winsock thất bại
+    }
 
-    if ((protonum = protonumber ("tcp")) < 0)
-	return -1;
+    if (make_inetaddr (hostname, servicename, &remote) < 0) {
+        WSACleanup();  // Dọn dẹp Winsock trước khi thoát
+        return -1;
+    }
+
+    if ((protonum = protonumber ("tcp")) < 0) {
+        WSACleanup();  // Dọn dẹp Winsock trước khi thoát
+        return -1;
+    }
 
     if ((s = socket (PF_INET, SOCK_STREAM, protonum)) < 0)
     {
-	serrno = SE_SYSERR;
-	sename = "socket";
-	return -1;
+        serrno = SE_SYSERR;
+        sename = "socket";
+        WSACleanup();  // Dọn dẹp Winsock khi gặp lỗi
+        return -1;
     }
-    
-    if (make_inetaddr ((char *) 0, (char *) 0, &local) < 0)
-	return -1;
 
-    if (bind (s, &local, sizeof (local)) < 0)
-    {
-	serrno = SE_SYSERR;
-	sename = "bind";
-	return -1;
+    if (make_inetaddr ((char *) 0, (char *) 0, &local) < 0) {
+        closesocket(s);  // Đóng socket khi gặp lỗi
+        WSACleanup();    // Dọn dẹp Winsock khi gặp lỗi
+        return -1;
     }
-    if (connect (s, &remote, sizeof (remote)) < 0)
+
+    if (bind (s, (struct sockaddr *)&local, sizeof(local)) < 0)
     {
-	serrno = SE_SYSERR;
-	sename = "connect";
-	return -1;
+        serrno = SE_SYSERR;
+        sename = "bind";
+        closesocket(s);  // Đóng socket khi gặp lỗi
+        WSACleanup();    // Dọn dẹp Winsock khi gặp lỗi
+        return -1;
     }
+
+    if (connect (s, (struct sockaddr *)&remote, sizeof(remote)) < 0)
+    {
+        serrno = SE_SYSERR;
+        sename = "connect";
+        closesocket(s);  // Đóng socket khi gặp lỗi
+        WSACleanup();    // Dọn dẹp Winsock khi gặp lỗi
+        return -1;
+    }
+
+    // Không cần gọi WSACleanup() ở đây, vì nó sẽ được gọi khi chương trình dừng
+
     return s;
 }

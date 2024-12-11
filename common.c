@@ -1,69 +1,58 @@
-/**
- * common.c, copyright 2001 Steve Gribble
- *
- * This file contains some common utility functions that
- * both the client and server can use.
- */
+#include <winsock2.h>  // Thư viện cần thiết cho Winsock trên Windows
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <errno.h>
+int correct_read(int s, char *data, int len) {
+    int sofar, ret;
+    char *tmp;
 
-#include "common.h"
+    sofar = 0;
+    while (sofar != len) {
+        tmp = data + (unsigned long) sofar;
+        ret = recv(s, tmp, len - sofar, 0);  // Sử dụng recv thay vì read
 
-/**
- * This function writes back a response over the socket
- * to the client.  This function is thread safe.
- */
-void  send_response(int fd, char *response, int response_length) {
-  correct_write(fd, response, response_length);
+        if (ret == SOCKET_ERROR) {
+            // Kiểm tra lỗi bằng WSAGetLastError() trên Windows
+            int error = WSAGetLastError();
+            if (error == WSAEWOULDBLOCK) {
+                return 0;  // Socket đang chờ, không có dữ liệu
+            } else {
+                perror("Read error");
+                return -1;  // Lỗi không xác định
+            }
+        }
+        else if (ret == 0) {
+            return 0;  // Kết nối đã đóng
+        } else {
+            sofar += ret;
+        }
+    }
+
+    return len;
 }
 
+int correct_write(int s, char *data, int len) {
+    int sofar, ret;
+    char *tmp;
 
-/**
- * A utility function for reading a fixed number of bytes
- * from a socket.  This function is thread safe.
- */
-int correct_read(int s, char *data, int len)
-{
-  int sofar, ret;
-  char *tmp;
-
-  sofar = 0;
-  while(sofar != len) {
-    tmp = data + (unsigned long) sofar;
-    ret = read(s, tmp, len-sofar);
-    if (ret <= 0) {
-      if (! ((ret == -1) && ((errno == EAGAIN) || (errno == EINTR))) )
-        return ret;
-    } else
-      sofar += ret;
-  }
-  return len;
-}
-
-/**
- * A utility function for writing a fixed number of bytes
- * over a network socket.  This function is thread safe.
- */
-int correct_write(int s, char *data, int len)
-{
-  int sofar, ret;
-  char *tmp;
-
-  if (len == -1) 
-    len = strlen(data);
+    if (len == -1) 
+        len = strlen(data);
   
-  sofar = 0;
-  while (sofar != len) {
-    tmp = data + (unsigned long) sofar;
-    ret = write(s, tmp, len-sofar);
-    if (ret <= 0) {
-      if (! ((ret == -1) && ((errno == EAGAIN) || (errno == EINTR))) )
-        return ret;
-    } else
-      sofar += ret;
-  }
-  return len;
+    sofar = 0;
+    while (sofar != len) {
+        tmp = data + (unsigned long) sofar;
+        ret = send(s, tmp, len - sofar, 0);  // Sử dụng send thay vì write
+
+        if (ret == SOCKET_ERROR) {
+            // Kiểm tra lỗi bằng WSAGetLastError() trên Windows
+            int error = WSAGetLastError();
+            if (error == WSAEWOULDBLOCK) {
+                return 0;  // Socket đang chờ, không thể ghi dữ liệu
+            } else {
+                perror("Write error");
+                return -1;  // Lỗi không xác định
+            }
+        } else {
+            sofar += ret;
+        }
+    }
+    return len;
 }

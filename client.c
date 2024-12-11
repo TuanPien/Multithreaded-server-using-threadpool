@@ -1,60 +1,73 @@
-/**
- * client.c, copyright 2001 Steve Gribble
- *
- * The client is a single-threaded program; it sits in a tight
- * loop, and in each iteration, it opens a TCP connection to
- * the server, sends a request, and reads back a response.
- */
-
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
-#include <ctype.h>
 #include <errno.h>
-
+#include <stdlib.h>
+#include <winsock2.h>  // Thư viện cho Winsock trên Windows
 #include "SocketLibrary/socklib.h"
 #include "common.h"
 
-/**
- * This program should be invoked as "./client hostname portnumber",
- * for example, "./client spinlock 4342".
- */
+void initialize_winsock() {
+    WSADATA wsaData;
+    int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);  // Khởi tạo Winsock
+
+    if (iResult != 0) {
+        fprintf(stderr, "WSAStartup failed: %d\n", iResult);
+        exit(1);
+    }
+}
+
+void cleanup_winsock() {
+    int iResult = WSACleanup();  // Dọn dẹp Winsock
+    if (iResult != 0) {
+        fprintf(stderr, "WSACleanup failed: %d\n", iResult);
+    }
+}
 
 int main(int argc, char **argv) {
-  int  socket_talk, i;
-  char request[REQUEST_SIZE];
-  char response[RESPONSE_SIZE];
+    int socket_talk, i;
+    char request[REQUEST_SIZE];
+    char response[RESPONSE_SIZE];
 
-  if (argc != 3) {
-    fprintf(stderr,
-	    "(CLIENT): Invoke as  'client machine.name.address socknum'\n");
-    exit(1);
-  }
+    // Khởi tạo Winsock
+    initialize_winsock();
 
-  // initialize request to some silly data
-  for (i=0; i<REQUEST_SIZE; i++) {
-    request[i] = (char) i%255;
-  }
-
-  // spin forever, opening connections, and pushing requests
-  while(1) {
-    int result;
-
-    // open up a connection to the server
-    if ((socket_talk = sconnect(argv[1], argv[2])) < 0) {
-      perror("(CLIENT): sconnect");
-      exit(1);
+    if (argc != 3) {
+        fprintf(stderr, "(CLIENT): Invoke as 'client machine.name.address socknum'\n");
+        cleanup_winsock();  // Dọn dẹp Winsock trước khi thoát
+        exit(1);
     }
 
-    // write the request
-    result = correct_write(socket_talk, request, REQUEST_SIZE);
-    if (result == REQUEST_SIZE) {
-      // read the response
-      result = correct_read(socket_talk, response, RESPONSE_SIZE);
+    // Initialize request to some silly data
+    for (i = 0; i < REQUEST_SIZE; i++) {
+        request[i] = (char)(i % 255);
     }
-    fprintf(stderr, "Result from server = %d", result);
-    close(socket_talk);
-  }
-  
-  return 0;
+
+    // Spin forever, opening connections, and pushing requests
+    while (1) {
+        int result;
+
+        // Open up a connection to the server
+        if ((socket_talk = sconnect(argv[1], argv[2])) < 0) {
+            perror("(CLIENT): sconnect");
+            cleanup_winsock();  // Dọn dẹp Winsock trước khi thoát
+            exit(1);
+        }
+
+        // Write the request
+        result = correct_write(socket_talk, request, REQUEST_SIZE);
+        if (result == REQUEST_SIZE) {
+            // Read the response
+            result = correct_read(socket_talk, response, RESPONSE_SIZE);
+        }
+        fprintf(stderr, "Result from server = %d\n", result);
+
+        // Close the socket (use closesocket on Windows)
+        closesocket(socket_talk);
+    }
+
+    // Dọn dẹp Winsock trước khi thoát
+    cleanup_winsock();
+
+    return 0;
 }

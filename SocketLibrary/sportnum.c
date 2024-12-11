@@ -2,32 +2,34 @@
  * sportnum.c -- return the port number of the passed socket 
  */
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-
+#include <stdio.h>
+#include <winsock2.h>  // Thay sys/socket.h bằng winsock2.h
+#include <ws2tcpip.h>
 #include "socklib.h"
 
+// Khởi tạo Winsock
+extern int errno;
+
 int 
-sportnum (s)
-    int     s;
+sportnum (int s)
 {
-    struct sockaddr sockname;
-    int     len;
+    struct sockaddr_in sockname;  // Thay struct sockaddr thành sockaddr_in
+    int len;
 
     sclrerr ();
 
-    len = sizeof (sockname);
-    if (getsockname (s, &sockname, &len) < 0)
+    len = sizeof(sockname);
+    if (getsockname(s, (struct sockaddr *)&sockname, &len) < 0)
     {
-	serrno = SE_SYSERR;
-	sename = "getsockname";
-	return -1;
+        serrno = SE_SYSERR;
+        sename = "getsockname";
+        return -1;
     }
-    if (sockname.sa_family != AF_INET)
+    if (sockname.sin_family != AF_INET)
     {
-	serrno = SE_UNKAF;
-	return -1;
+        serrno = SE_UNKAF;
+        return -1;
     }
-    return ((struct sockaddr_in *) (&sockname))->sin_port;
+
+    return ntohs(sockname.sin_port);  // Dùng ntohs để chuyển đổi từ mạng byte order về host byte order
 }

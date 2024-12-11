@@ -1,0 +1,9 @@
+$uri = "http://localhost:8080/"
+$jobs = @()
+for ($i = 0; $i -lt 10; $i++) {
+    $jobs += Start-Job { Invoke-WebRequest -Uri $using:uri }
+}
+$jobs | ForEach-Object { Receive-Job -Job $_; Remove-Job -Job $_ }
+
+
+gcc -o server server.c -lws2_32

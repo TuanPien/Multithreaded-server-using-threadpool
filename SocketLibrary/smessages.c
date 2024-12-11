@@ -4,15 +4,10 @@
  */
 
 #include <stdio.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-/*#include <unistd.h>*/
+#include <winsock2.h>   // Thay sys/socket.h bằng winsock2.h
+#include <ws2tcpip.h>
 #include <fcntl.h>
-#include <sys/ioctl.h>
-#include <sys/time.h>
 #include <errno.h>
-
 #ifdef _AIX
 #include <sys/select.h>
 #endif
@@ -33,11 +28,10 @@ void handle(int s, char *message, char *end_of_transmission);
 mess_list add_incomplete(int s, char *message);
 void clean_list(int s);
 
-int incoming_messages(s)
-    int   s;
+int incoming_messages(int s)
 {
     mess_list   temp;
-    int         incomplete = 0, num_messages=0, result;
+    int         incomplete = 0, num_messages = 0, result;
     char        message[MAXBUFF];
     char        *tmp, *tmpprev;
 
@@ -52,28 +46,28 @@ int incoming_messages(s)
         if (result <= 0)
            break;
 
-        result = read(s, message, MAXBUFF-1);
+        result = recv(s, message, MAXBUFF - 1, 0);  // Thay read bằng recv
         if (result > 0)
-	  message[result] = '\0';   /* To make sure is null-term */
+          message[result] = '\0';   /* To make sure is null-term */
         if (result == 0)
         {
             clean_list(s);
             return -1;
         }
-        if (result == -1)
+        if (result == SOCKET_ERROR)  // Thay kiểm tra lỗi read với SOCKET_ERROR
         {
-           if ((errno != EAGAIN) && (errno != EWOULDBLOCK))
+           if ((WSAGetLastError() != WSAEWOULDBLOCK))
            {
               serrno = SE_SYSERR;
               sename = "incoming messages";
-              sperror("incoming messages read");
+              sperror("incoming messages recv");
               exit(-1);
            }
         }
         else
-	{
-          /* Have a message.  Split into chunks and sent off to handler */
-          tmp = tmpprev= message;
+        {
+          /* Have a message. Split into chunks and send off to handler */
+          tmp = tmpprev = message;
           while (tmp <= message + result) 
           {
              if ((*tmp == '\0') && (tmp != tmpprev))
@@ -85,10 +79,10 @@ int incoming_messages(s)
                tmpprev += 1;
              tmp += 1;
           }
-	}
+        }
     }
 
-    /* Find out how many messages there are for s on the queue.  If
+    /* Find out how many messages there are for s on the queue. If
        we come across a message with complete = 0, it is the last
        message on the queue, but doesn't (yet) count towards the
        total. */
@@ -112,12 +106,10 @@ int incoming_messages(s)
     return num_messages;
 }
 
-int get_next_message(s, c)
-    int    s;
-    char   c[MAXBUFF];
+int get_next_message(int s, char c[MAXBUFF])
 {
     mess_list temp, prev;
-    int       result;
+    int result;
 
     sclrerr();
 
@@ -129,7 +121,7 @@ int get_next_message(s, c)
     if (result < 0)
       return result;
 
-    /* Is at least one message for s on queue.  Copy the message
+    /* Is at least one message for s on queue. Copy the message
        into c, and destroy the linked list element */
     
     temp = prev = the_list;
@@ -155,9 +147,7 @@ int get_next_message(s, c)
     return 0;
 }
 
-int send_a_message(s, c)
-    int   s;
-    char  *c;
+int send_a_message(int s, char *c)
 {
     int result;
 
@@ -167,10 +157,10 @@ int send_a_message(s, c)
     if (result == 0)
        return 0;
     if (result > 0)
-       result = write(s, c, strlen(c)+1);
-    if (result != strlen(c)+1)
+       result = send(s, c, strlen(c) + 1, 0);  // Thay write bằng send
+    if (result != strlen(c) + 1)
     {
-       if ((result == -1) && (errno == EWOULDBLOCK))
+       if ((result == SOCKET_ERROR) && (WSAGetLastError() == WSAEWOULDBLOCK))
           return 0;
        if (result == 0)
        {
@@ -178,11 +168,11 @@ int send_a_message(s, c)
           clean_list(s);
           return -1;
        }
-       if (result == -1)
+       if (result == SOCKET_ERROR)
        {
             serrno = SE_SYSERR;
             sename = "send a message";
-            sperror("send a message write");
+            sperror("send a message send");
             exit(-1);
        }
        /* Hmm.. */
@@ -196,7 +186,7 @@ void handle(int s, char *message, char *end_of_transmission)
     int incomplete_add = 0, incomplete = 0;
     mess_list  temp;
 
-    if ( (message + strlen(message)) > end_of_transmission)
+    if ((message + strlen(message)) > end_of_transmission)
        incomplete = 1;
 
     temp = the_list;
@@ -265,9 +255,10 @@ void clean_list(int s)
         }
     }
 }
+
 mess_list add_incomplete(int s, char *message)
 {
-    mess_list   temp;
+    mess_list temp;
 
     if (the_list == NULL)
     {
@@ -361,40 +352,41 @@ int test_writey(int s)
 
    return val;
 }
-int  empty_incoming_messages(s)
-     int  s;
+
+int empty_incoming_messages(int s)
 {
    mess_list temp, prev;
-   int       result;
+   int result;
 
    sclrerr();
 
-    if ((result = incoming_messages(s)) == 0)
-         return 1;
+   if ((result = incoming_messages(s)) == 0)
+       return 1;  // Trả về 1 nếu không có tin nhắn đến
 
-    if (result < 0)
-      return result;
+   if (result < 0)
+       return result;  // Trả về giá trị lỗi nếu có lỗi
 
-    /* Is at least one message for s on queue; destroy the element */
+   /* Is at least one message for s on queue; destroy the element */
 
-    while (the_list->s == s)
-    {
+   while (the_list->s == s)
+   {
        temp = prev = the_list;
        the_list = temp->next;
        free(temp);
        if (the_list == NULL)
-          return;
-    }
-    while (temp != NULL)
-    {
+          return 0;  // Trả về 0 khi danh sách trống
+   }
+
+   while (temp != NULL)
+   {
       if (temp->s == s)
       {
          prev->next = temp->next;
          free(temp);
-         return 1;
+         return 1;  // Trả về 1 khi đã xóa tin nhắn
       }
       prev = temp;
       temp = temp->next;
-    }
-    return 1;
+   }
+   return 0;  // Trả về 0 nếu không tìm thấy tin nhắn
 }
